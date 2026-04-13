@@ -20,7 +20,8 @@ const notificationSchema = new mongoose.Schema(
         'PASSWORD_RESET_OTP',
         'BOOKING_CONFIRMED',
         'BOOKING_CANCELLED',
-        'GENERAL_ALERT'
+        'GENERAL_ALERT',
+        'HOST_PASSWORD'
       ]
     },
     channel: {
