@@ -1,5 +1,4 @@
 const express = require("express");
-const cors = require("cors");
 const morgan = require("morgan");
 
 const internalNotificationRoutes = require("./routes/internalNotification.routes");
@@ -10,7 +9,6 @@ const errorMiddleware = require("./middlewares/error.middleware");
 
 const app = express();
 
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));

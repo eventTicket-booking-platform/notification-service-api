@@ -4,6 +4,9 @@ const controller = require("../controllers/adminNotification.controller");
 
 const router = express.Router();
 
+// Get notification logs from the admin base route
+router.get("/", controller.getLogs);
+
 // Get admin statistics
 router.get("/stats", controller.getStats);
 
