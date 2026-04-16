@@ -92,28 +92,6 @@ class InternalNotificationController {
       return next(error);
     }
   }
-
-  async sendGeneralAlert(req, res, next) {
-    try {
-      const notification = await notificationService.sendNotification({
-        userId: req.body.userId,
-        email: req.body.email,
-        type: 'GENERAL_ALERT',
-        payload: {
-          userId: req.body.userId,
-          email: req.body.email,
-          subject: req.body.subject,
-          message: req.body.message
-        }
-      });
-
-      return res
-        .status(200)
-        .json(successResponse(200, 'General alert email sent successfully', notification));
-    } catch (error) {
-      return next(error);
-    }
-  }
 }
 
 module.exports = new InternalNotificationController();

@@ -2,7 +2,6 @@ const express = require("express");
 const morgan = require("morgan");
 
 const internalNotificationRoutes = require("./routes/internalNotification.routes");
-const userNotificationRoutes = require("./routes/userNotification.routes");
 const adminNotificationRoutes = require("./routes/adminNotification.routes");
 const notFoundMiddleware = require("./middlewares/notFound.middleware");
 const errorMiddleware = require("./middlewares/error.middleware");
@@ -69,10 +68,6 @@ app.post("/notification-service/api/v1/test", async (req, res, next) => {
 app.use(
   "/notification-service/api/v1/internal/notifications",
   internalNotificationRoutes,
-);
-app.use(
-  "/notification-service/api/v1/user/notifications",
-  userNotificationRoutes,
 );
 app.use(
   "/notification-service/api/v1/admin/notifications",

@@ -65,16 +65,9 @@ const validateBookingCancelled = buildValidationMiddleware([
   { field: 'eventTitle', required: true, type: 'string' }
 ]);
 
-const validateGeneralAlert = buildValidationMiddleware([
-  ...commonUserRules,
-  { field: 'subject', required: true, type: 'string' },
-  { field: 'message', required: true, type: 'string' }
-]);
-
 module.exports = {
   validateEmailVerificationOtp,
   validatePasswordResetOtp,
   validateBookingConfirmed,
-  validateBookingCancelled,
-  validateGeneralAlert
+  validateBookingCancelled
 };

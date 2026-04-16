@@ -6,7 +6,6 @@ const {
   validatePasswordResetOtp,
   validateBookingConfirmed,
   validateBookingCancelled,
-  validateGeneralAlert,
 } = require("../validators/notification.validator");
 
 const router = express.Router();
@@ -37,13 +36,6 @@ router.post(
   "/booking-cancelled",
   validateBookingCancelled,
   controller.sendBookingCancelled,
-);
-
-// Send general alert notification
-router.post(
-  "/general-alert",
-  validateGeneralAlert,
-  controller.sendGeneralAlert,
 );
 
 module.exports = router;
