@@ -1,6 +1,7 @@
 const amqp = require("amqplib");
 
-const DEFAULT_QUEUE = process.env.AUTH_NOTIFICATION_QUEUE || "auth.notification.queue";
+const AUTH_NOTIFICATION_QUEUE = process.env.AUTH_NOTIFICATION_QUEUE || "auth.notification.queue";
+const BOOKING_NOTIFICATION_QUEUE = process.env.BOOKING_NOTIFICATION_QUEUE || "booking.notification.queue";
 
 let connection;
 let channel;
@@ -20,13 +21,14 @@ function resolveRabbitUrl() {
 
 async function connectRabbit() {
   if (channel) {
-    return { connection, channel, queueName: DEFAULT_QUEUE };
+    return { connection, channel };
   }
 
   const rabbitUrl = resolveRabbitUrl();
   connection = await amqp.connect(rabbitUrl);
   channel = await connection.createChannel();
-  await channel.assertQueue(DEFAULT_QUEUE, { durable: true });
+  await channel.assertQueue(AUTH_NOTIFICATION_QUEUE, { durable: true });
+  await channel.assertQueue(BOOKING_NOTIFICATION_QUEUE, { durable: true });
 
   connection.on("error", (error) => {
     console.error("RabbitMQ connection error:", error.message);
@@ -38,7 +40,7 @@ async function connectRabbit() {
     connection = null;
   });
 
-  return { connection, channel, queueName: DEFAULT_QUEUE };
+  return { connection, channel };
 }
 
 function getRabbitChannel() {
@@ -52,5 +54,6 @@ function getRabbitChannel() {
 module.exports = {
   connectRabbit,
   getRabbitChannel,
-  DEFAULT_QUEUE,
+  AUTH_NOTIFICATION_QUEUE,
+  BOOKING_NOTIFICATION_QUEUE,
 };

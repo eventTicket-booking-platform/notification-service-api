@@ -1,12 +1,12 @@
 const notificationService = require("../services/notification.service");
-const { getRabbitChannel, DEFAULT_QUEUE } = require("../config/rabbitmq");
+const { getRabbitChannel, AUTH_NOTIFICATION_QUEUE } = require("../config/rabbitmq");
 
 async function startAuthNotificationConsumer() {
   const channel = getRabbitChannel();
-  await channel.assertQueue(DEFAULT_QUEUE, { durable: true });
+  await channel.assertQueue(AUTH_NOTIFICATION_QUEUE, { durable: true });
   channel.prefetch(10);
 
-  await channel.consume(DEFAULT_QUEUE, async (message) => {
+  await channel.consume(AUTH_NOTIFICATION_QUEUE, async (message) => {
     if (!message) {
       return;
     }
@@ -22,7 +22,7 @@ async function startAuthNotificationConsumer() {
     }
   });
 
-  console.log(`Auth notification consumer started on queue: ${DEFAULT_QUEUE}`);
+  console.log(`Auth notification consumer started on queue: ${AUTH_NOTIFICATION_QUEUE}`);
 }
 
 async function handleAuthNotificationEvent(event) {
