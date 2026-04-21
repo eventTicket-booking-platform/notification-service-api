@@ -11,7 +11,8 @@ function resolveRabbitUrl() {
     return process.env.RABBITMQ_URL;
   }
 
-  const host = process.env.RABBITMQ_HOST || "localhost";
+  const defaultHost = process.env.NODE_ENV === "local" ? "127.0.0.1" : "localhost";
+  const host = process.env.RABBITMQ_HOST || defaultHost;
   const port = process.env.RABBITMQ_PORT || "5672";
   const username = process.env.RABBITMQ_USERNAME || "guest";
   const password = process.env.RABBITMQ_PASSWORD || "guest";
@@ -25,7 +26,12 @@ async function connectRabbit() {
   }
 
   const rabbitUrl = resolveRabbitUrl();
-  connection = await amqp.connect(rabbitUrl);
+  try {
+    connection = await amqp.connect(rabbitUrl);
+  } catch (error) {
+    error.message = `${error.message} (RabbitMQ URL: ${rabbitUrl})`;
+    throw error;
+  }
   channel = await connection.createChannel();
   await channel.assertQueue(AUTH_NOTIFICATION_QUEUE, { durable: true });
   await channel.assertQueue(BOOKING_NOTIFICATION_QUEUE, { durable: true });
