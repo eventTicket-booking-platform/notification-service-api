@@ -18,17 +18,35 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: |
-          echo "Enable your Node.js SonarQube scan here later."
+        with:
+          args: >
+            -Dsonar.projectKey=notification-service-api
+            -Dsonar.sources=src
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.exclusions=node_modules/**,.github/**,.idea/**,coverage/**
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
