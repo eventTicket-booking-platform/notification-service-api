@@ -1,7 +1,19 @@
 const amqp = require("amqplib");
 
-const AUTH_NOTIFICATION_QUEUE = process.env.AUTH_NOTIFICATION_QUEUE || "auth.notification.queue";
-const BOOKING_NOTIFICATION_QUEUE = process.env.BOOKING_NOTIFICATION_QUEUE || "booking.notification.queue";
+const AUTH_NOTIFICATION_QUEUE =
+    process.env.AUTH_NOTIFICATION_QUEUE || "auth.notification.queue";
+
+const BOOKING_NOTIFICATION_QUEUE =
+    process.env.BOOKING_NOTIFICATION_QUEUE ||
+    "booking.notification.queue";
+
+const BOOKING_NOTIFICATION_RETRY_QUEUE =
+    process.env.BOOKING_NOTIFICATION_RETRY_QUEUE ||
+    "booking.notification.retry.queue";
+
+const BOOKING_NOTIFICATION_DLQ =
+    process.env.BOOKING_NOTIFICATION_DLQ ||
+    "booking.notification.dlq";
 
 let connection;
 let channel;
@@ -11,11 +23,22 @@ function resolveRabbitUrl() {
     return process.env.RABBITMQ_URL;
   }
 
-  const defaultHost = process.env.NODE_ENV === "local" ? "127.0.0.1" : "localhost";
-  const host = process.env.RABBITMQ_HOST || defaultHost;
-  const port = process.env.RABBITMQ_PORT || "5672";
-  const username = process.env.RABBITMQ_USERNAME || "guest";
-  const password = process.env.RABBITMQ_PASSWORD || "guest";
+  const defaultHost =
+      process.env.NODE_ENV === "local"
+          ? "127.0.0.1"
+          : "localhost";
+
+  const host =
+      process.env.RABBITMQ_HOST || defaultHost;
+
+  const port =
+      process.env.RABBITMQ_PORT || "5672";
+
+  const username =
+      process.env.RABBITMQ_USERNAME || "guest";
+
+  const password =
+      process.env.RABBITMQ_PASSWORD || "guest";
 
   return `amqp://${username}:${password}@${host}:${port}`;
 }
@@ -26,32 +49,77 @@ async function connectRabbit() {
   }
 
   const rabbitUrl = resolveRabbitUrl();
+
   try {
     connection = await amqp.connect(rabbitUrl);
   } catch (error) {
-    error.message = `${error.message} (RabbitMQ URL: ${rabbitUrl})`;
+    error.message =
+        `${error.message} (RabbitMQ URL: ${rabbitUrl})`;
+
     throw error;
   }
+
   channel = await connection.createChannel();
-  await channel.assertQueue(AUTH_NOTIFICATION_QUEUE, { durable: true });
-  await channel.assertQueue(BOOKING_NOTIFICATION_QUEUE, { durable: true });
+
+  await channel.assertQueue(
+      AUTH_NOTIFICATION_QUEUE,
+      {
+        durable: true,
+      }
+  );
+
+  await channel.assertQueue(
+      BOOKING_NOTIFICATION_QUEUE,
+      {
+        durable: true,
+      }
+  );
+
+  await channel.assertQueue(
+      BOOKING_NOTIFICATION_RETRY_QUEUE,
+      {
+        durable: true,
+        arguments: {
+          "x-message-ttl": 10000,
+          "x-dead-letter-exchange": "",
+          "x-dead-letter-routing-key":
+          BOOKING_NOTIFICATION_QUEUE,
+        },
+      }
+  );
+
+  await channel.assertQueue(
+      BOOKING_NOTIFICATION_DLQ,
+      {
+        durable: true,
+      }
+  );
 
   connection.on("error", (error) => {
-    console.error("RabbitMQ connection error:", error.message);
+    console.error(
+        "RabbitMQ connection error:",
+        error.message
+    );
   });
 
   connection.on("close", () => {
     console.error("RabbitMQ connection closed");
+
     channel = null;
     connection = null;
   });
 
-  return { connection, channel };
+  return {
+    connection,
+    channel,
+  };
 }
 
 function getRabbitChannel() {
   if (!channel) {
-    throw new Error("RabbitMQ channel not initialized");
+    throw new Error(
+        "RabbitMQ channel not initialized"
+    );
   }
 
   return channel;
@@ -62,4 +130,6 @@ module.exports = {
   getRabbitChannel,
   AUTH_NOTIFICATION_QUEUE,
   BOOKING_NOTIFICATION_QUEUE,
+  BOOKING_NOTIFICATION_RETRY_QUEUE,
+  BOOKING_NOTIFICATION_DLQ,
 };
