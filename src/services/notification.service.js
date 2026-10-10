@@ -3,6 +3,12 @@ const mongoose = require("mongoose");
 const Notification = require("../models/notification.model");
 const brevoEmailService = require("./brevoEmail.service");
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character]);
+}
+
 class NotificationService {
   ensureValidId(notificationId) {
     if (!mongoose.Types.ObjectId.isValid(notificationId)) {
@@ -17,6 +23,32 @@ class NotificationService {
     const name = payload.name || "User";
 
     switch (type) {
+      case "HOST_APPLICATION_APPROVED": {
+        const message = `Hello ${name}, your host application for ${payload.organizationName} has been approved. Sign in again to the shared Admin/Host dashboard with your existing account to access host functionality.`;
+        return {
+          subject: "Your Event Hub host application is approved",
+          message,
+          html: `<div style="font-family: Arial, sans-serif; color: #1f2937;">
+            <h2>Host application approved</h2><p>Hello ${escapeHtml(name)},</p>
+            <p>Your host application for ${escapeHtml(payload.organizationName)} has been approved.</p>
+            <p>Sign in again to the shared Admin/Host dashboard with your existing account to access host functionality.</p>
+          </div>`,
+        };
+      }
+      case "HOST_APPLICATION_REJECTED": {
+        const reason = payload.rejectionReason?.trim();
+        const message = `Hello ${name}, your host application for ${payload.organizationName} was not approved.${reason ? ` Rejection reason: ${reason}.` : ""} You may update your application and apply again from Become a Host.`;
+        return {
+          subject: "Update on your Event Hub host application",
+          message,
+          html: `<div style="font-family: Arial, sans-serif; color: #1f2937;">
+            <h2>Host application not approved</h2><p>Hello ${escapeHtml(name)},</p>
+            <p>Your host application for ${escapeHtml(payload.organizationName)} was not approved.</p>
+            ${reason ? `<p style="white-space: pre-wrap;">Rejection reason: ${escapeHtml(reason)}</p>` : ""}
+            <p>You may update your application and apply again from Become a Host.</p>
+          </div>`,
+        };
+      }
       case "EMAIL_VERIFICATION_OTP": {
         const subject = "Verify your Event Hub email";
         const message = `Hello ${name}, your Event Hub email verification OTP is ${payload.otp}. This OTP will expire soon.`;

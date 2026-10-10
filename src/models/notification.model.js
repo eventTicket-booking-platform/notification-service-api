@@ -21,7 +21,9 @@ const notificationSchema = new mongoose.Schema(
         'BOOKING_CONFIRMED',
         'BOOKING_CANCELLED',
         'GENERAL_ALERT',
-        'HOST_PASSWORD'
+        'HOST_PASSWORD',
+        'HOST_APPLICATION_APPROVED',
+        'HOST_APPLICATION_REJECTED'
       ]
     },
     channel: {

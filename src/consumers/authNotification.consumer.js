@@ -29,6 +29,25 @@ async function handleAuthNotificationEvent(event) {
   const type = event?.type;
   const payload = event?.payload || {};
 
+  if (type === "HOST_APPLICATION_APPROVED" || type === "HOST_APPLICATION_REJECTED") {
+    ensureRequired(payload, ["email", "firstName", "organizationName"]);
+    for (const field of ["email", "firstName", "organizationName"]) {
+      if (typeof payload[field] !== "string" || !payload[field].trim()) {
+        throw new Error(`Payload field ${field} must be a non-empty string`);
+      }
+    }
+    if (type === "HOST_APPLICATION_REJECTED" && payload.rejectionReason != null && typeof payload.rejectionReason !== "string") {
+      throw new Error("Payload field rejectionReason must be a string");
+    }
+    const notificationPayload = {
+      name: payload.firstName,
+      organizationName: payload.organizationName,
+    };
+    if (type === "HOST_APPLICATION_REJECTED") notificationPayload.rejectionReason = payload.rejectionReason;
+    await notificationService.sendNotification({ email: payload.email, type, payload: notificationPayload });
+    return;
+  }
+
   if (type === "EMAIL_VERIFICATION_OTP") {
     ensureRequired(payload, ["userId", "email", "otp"]);
     await notificationService.sendNotification({

@@ -16,6 +16,7 @@ Notification delivery service for Event Hub. This service stores notification re
 - Consume booking notification messages from RabbitMQ
 - Send email verification OTP emails
 - Send password reset OTP emails
+- Send host application approval and rejection emails
 - Send booking confirmation emails
 - Send booking cancellation emails
 - Store notification delivery logs
@@ -114,6 +115,35 @@ npm start
 
 - `src/server.js` loads `.env`, then `.env.<NODE_ENV>`.
 - The service starts consumers automatically after DB and RabbitMQ connections succeed.
+
+## Host application review notifications
+
+The existing `auth.notification.queue` consumer accepts the existing `{type, payload}`
+auth envelope with two additional types:
+
+| Type | Payload |
+| --- | --- |
+| `HOST_APPLICATION_APPROVED` | `email`, `firstName`, `organizationName` |
+| `HOST_APPLICATION_REJECTED` | The same fields, plus optional `rejectionReason` |
+
+Email, first name and organization must be nonblank strings. A supplied rejection
+reason must be a string. The consumer selects only the needed fields; passwords
+are not forwarded, stored or emailed for these events. Approval asks the applicant
+to sign in again to the shared Admin/Host dashboard with their existing account.
+Rejection includes the reason when provided and explains that they may apply again
+through Become a Host. User-supplied content is escaped in these HTML templates.
+
+These events reuse notification records, Brevo delivery and the existing admin
+retry of FAILED notification records. Auth consumption retains its existing ACK
+on success and `nack(message, false, false)` on invalid/unknown events or delivery
+failure. The code does **not** configure automated auth retry queues or auth DLQ
+routing; without an external broker dead-letter policy, NACKed auth messages are
+discarded. Booking's retry queue, DLQ, correlation handling and `ProcessedEvent`
+idempotency are unchanged. The auth envelope has no stable event ID/deduplication,
+so redelivery or uncertain email outcomes can produce duplicates. This is not
+exactly-once delivery.
+
+Run `npm test` for host review consumer/email tests and booking regression tests.
 
 ## Booking event idempotency
 
