@@ -1,4 +1,5 @@
 const notificationService = require("../services/notification.service");
+const ProcessedEvent = require("../models/processedEvent.model");
 const {
   getRabbitChannel,
   BOOKING_NOTIFICATION_QUEUE,
@@ -32,6 +33,9 @@ async function startBookingNotificationConsumer() {
         const attempt =
             Number(headers["x-attempt"] || 1);
 
+        let correlationId =
+            headers["x-correlation-id"] || "unknown";
+
         try {
           const rawBody =
               message.content.toString();
@@ -43,8 +47,28 @@ async function startBookingNotificationConsumer() {
             throw new PermanentMessageError(`Invalid JSON: ${error.message}`);
           }
 
+          const eventId = event?.eventId;
+
+          correlationId =
+              event?.correlationId ||
+              event?.payload?.correlationId ||
+              correlationId;
+
+          if (!eventId) {
+            throw new PermanentMessageError("Missing required eventId");
+          }
+
+          if (typeof eventId !== "string" || !eventId.trim()) {
+            throw new PermanentMessageError("eventId must be a non-empty string");
+          }
+
+          console.log(
+              `Processing booking notification eventId=${eventId} correlationId=${correlationId}`
+          );
           await handleBookingNotificationEvent(
-              event
+              event,
+              eventId,
+              correlationId
           );
 
           channel.ack(message);
@@ -52,7 +76,7 @@ async function startBookingNotificationConsumer() {
         } catch (error) {
 
           console.error(
-              `Failed booking notification attempt ${attempt}/${MAX_DELIVERY_ATTEMPTS}:`,
+              `Failed booking notification correlationId=${correlationId} attempt ${attempt}/${MAX_DELIVERY_ATTEMPTS}:`,
               error.message
           );
 
@@ -72,6 +96,7 @@ async function startBookingNotificationConsumer() {
 
                   headers: {
                     ...headers,
+                    "x-correlation-id": correlationId,
                     "x-attempt": attempt + 1,
                   },
                 }
@@ -95,6 +120,7 @@ async function startBookingNotificationConsumer() {
 
                   headers: {
                     ...headers,
+                    "x-correlation-id": correlationId,
                     "x-attempt": attempt,
                     "x-failure-reason":
                     error.message,
@@ -120,16 +146,28 @@ async function startBookingNotificationConsumer() {
       `Booking notification consumer started on queue: ${BOOKING_NOTIFICATION_QUEUE}`
   );
 }
-async function handleBookingNotificationEvent(event) {
+
+async function handleBookingNotificationEvent(event, eventId, correlationId) {
   const type = event?.type;
   const payload = event?.payload || {};
 
   if (type === "BOOKING_CONFIRMED") {
+    const existingEvent = await ProcessedEvent.findOne({ eventId });
+
+    if (existingEvent) {
+      console.log(
+          `Duplicate booking notification skipped eventId=${eventId} correlationId=${correlationId}`
+      );
+      return;
+    }
+
     ensureRequired(payload, ["email", "bookingId", "eventTitle"]);
+
     await notificationService.sendNotification({
       userId: payload.userId,
       email: payload.email,
       type: "BOOKING_CONFIRMED",
+      correlationId,
       payload: {
         userId: payload.userId,
         email: payload.email,
@@ -139,6 +177,25 @@ async function handleBookingNotificationEvent(event) {
         bookingDate: payload.bookingDate,
       },
     });
+
+    // Record only after sending succeeds. A crash before this write can still
+    // result in another email on redelivery (at-least-once delivery).
+    try {
+      await ProcessedEvent.create({
+        eventId,
+        processedAt: new Date(),
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        console.log(
+            `Processed event already recorded by another consumer eventId=${eventId} correlationId=${correlationId}`
+        );
+        return;
+      }
+
+      throw error;
+    }
+
     return;
   }
 

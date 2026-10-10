@@ -114,3 +114,26 @@ npm start
 
 - `src/server.js` loads `.env`, then `.env.<NODE_ENV>`.
 - The service starts consumers automatically after DB and RabbitMQ connections succeed.
+
+## Booking event idempotency
+
+`BOOKING_CONFIRMED` requires the stable `eventId` published by Booking Service
+(the OutboxEvent ID). A missing, non-string or whitespace-only ID is a permanent
+invalid message and goes directly to the existing DLQ before lookup or sending.
+
+The consumer checks MongoDB `ProcessedEvent` before sending. An existing record
+skips the email and ACKs the message. Otherwise it sends the notification, saves
+the event ID with `processedAt`, then ACKs. The model has a unique index on
+`eventId` and defaults `processedAt` to the current time. A duplicate-key error
+(11000) when saving means another consumer recorded the event, so it ACKs
+without retrying. Notification failures do not create a processed record and
+continue through the existing retry queue and DLQ, preserving `x-attempt` and
+correlation IDs.
+
+Delivery remains **at-least-once**, with no exactly-once guarantee. An email may
+succeed and the service may crash before `ProcessedEvent` is saved, allowing a
+duplicate email on redelivery. Concurrent consumers can also both pass the
+lookup and send before one encounters the unique-index conflict; handling that
+conflict prevents retries but cannot undo either email.
+
+Run the focused consumer tests with `npm test -- --runInBand`.
